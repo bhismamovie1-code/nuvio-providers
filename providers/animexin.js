@@ -1,6 +1,6 @@
 /**
  * animexin - Built from src/animexin/
- * Generated: 2026-08-25T12:41:32.027Z
+ * Generated: 2026-08-25T14:09:11.379Z
  */
 var __defProp = Object.defineProperty;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
@@ -147,19 +147,19 @@ function extractOkru(url) {
 }
 function extractDailymotion(url) {
   return __async(this, null, function* () {
-    var _a, _b;
-    const res = yield fetch(url.startsWith("//") ? `https:${url}` : url);
-    const text = yield res.text();
-    const match = text.match(/window\.__PLAYER_CONFIG__\s*=\s*(\{.+?\});/);
-    if (!match)
-      return [];
     try {
-      const config = JSON.parse(match[1]);
-      const m3u8Url = (_b = (_a = config.criticalMetadata) == null ? void 0 : _a.stream) == null ? void 0 : _b.url;
-      if (m3u8Url) {
-        return [{ quality: "Auto", url: m3u8Url }];
+      const videoIdMatch = url.match(/\/video\/([a-zA-Z0-9]+)/);
+      if (!videoIdMatch)
+        return [];
+      const videoId = videoIdMatch[1];
+      const metadataUrl = `https://www.dailymotion.com/player/metadata/video/${videoId}`;
+      const res = yield fetch(metadataUrl);
+      const json = yield res.json();
+      if (json.qualities && json.qualities.auto && json.qualities.auto[0]) {
+        return [{ quality: "Auto", url: json.qualities.auto[0].url }];
       }
     } catch (e) {
+      console.error("[Dailymotion] Extractor error:", e.message);
     }
     return [];
   });
@@ -209,7 +209,7 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                       mappedQuality = "2160p";
                     streams.push({
                       server: serverName,
-                      name: "Animexin",
+                      name: "Animexin (OK.ru)",
                       title: `${animeTitle} - Ep ${absoluteEpisode}`,
                       url: s.url,
                       quality: mappedQuality,
@@ -224,7 +224,7 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                   dmStreams.forEach((s) => {
                     streams.push({
                       server: serverName,
-                      name: "Animexin",
+                      name: "Animexin (DM)",
                       title: `${animeTitle} - Ep ${absoluteEpisode}`,
                       url: s.url,
                       quality: "auto",

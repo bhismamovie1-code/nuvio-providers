@@ -10,10 +10,10 @@ async function testProvider() {
   console.log('--- Starting Animexin Step-by-Step Test ---\n')
 
   // Soul Land on Kitsu is 40995 (or just let them know)
-  const kitsuId = '48060'
+  const kitsuId = '48061'
   const mediaType = 'tv'
   const season = 1
-  const episode = 1
+  const episode = 66
 
   try {
     // Step 1: Kitsu Fetch

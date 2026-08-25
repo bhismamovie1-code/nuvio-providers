@@ -111,18 +111,21 @@ async function extractOkru(url) {
 }
 
 async function extractDailymotion(url) {
-  const res = await fetch(url.startsWith('//') ? `https:${url}` : url);
-  const text = await res.text();
-  const match = text.match(/window\.__PLAYER_CONFIG__\s*=\s*(\{.+?\});/);
-  if (!match) return [];
-  
   try {
-    const config = JSON.parse(match[1]);
-    const m3u8Url = config.criticalMetadata?.stream?.url;
-    if (m3u8Url) {
-      return [{ quality: 'Auto', url: m3u8Url }];
+    const videoIdMatch = url.match(/\/video\/([a-zA-Z0-9]+)/);
+    if (!videoIdMatch) return [];
+    
+    const videoId = videoIdMatch[1];
+    const metadataUrl = `https://www.dailymotion.com/player/metadata/video/${videoId}`;
+    const res = await fetch(metadataUrl);
+    const json = await res.json();
+    
+    if (json.qualities && json.qualities.auto && json.qualities.auto[0]) {
+      return [{ quality: 'Auto', url: json.qualities.auto[0].url }];
     }
-  } catch(e) {}
+  } catch(e) {
+    console.error('[Dailymotion] Extractor error:', e.message);
+  }
   return [];
 }
 
@@ -172,7 +175,7 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
 
                   streams.push({
                     server: serverName,
-                    name: 'Animexin',
+                    name: 'Animexin (OK.ru)',
                     title: `${animeTitle} - Ep ${absoluteEpisode}`,
                     url: s.url,
                     quality: mappedQuality,
@@ -187,7 +190,7 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                 dmStreams.forEach(s => {
                   streams.push({
                     server: serverName,
-                    name: 'Animexin',
+                    name: 'Animexin (DM)',
                     title: `${animeTitle} - Ep ${absoluteEpisode}`,
                     url: s.url,
                     quality: 'auto',

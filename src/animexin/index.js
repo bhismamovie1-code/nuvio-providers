@@ -18,24 +18,30 @@ async function fetchText(url, options = {}) {
   }
 }
 
-async function getTMDBData(tmdbId, mediaType) {
-  const tmdbUrl = `https://api.themoviedb.org/3/${mediaType === 'tv' ? 'tv' : 'movie'}/${tmdbId}?api_key=1865f43a0549ca50d341dd9ab8b29f49`
-  const tmdbRes = await fetch(tmdbUrl)
-  return await tmdbRes.json()
+async function getAnilistData(anilistId) {
+  const query = `
+  query ($id: Int) {
+    Media (id: $id, type: ANIME) {
+      title {
+        english
+        romaji
+      }
+      synonyms
+    }
+  }
+  `;
+  const variables = { id: parseInt(anilistId, 10) };
+  const res = await fetch('https://graphql.anilist.co', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables })
+  });
+  return await res.json();
 }
 
+// We no longer need this because Anilist already uses absolute numbering!
 function getAbsoluteEpisode(tmdbData, mediaType, season, episode) {
-  let absoluteEpisode = episode;
-  if (mediaType === 'tv' && season > 1 && tmdbData.seasons) {
-    let prevEpisodes = 0;
-    for (const s of tmdbData.seasons) {
-      if (s.season_number > 0 && s.season_number < season) {
-        prevEpisodes += s.episode_count;
-      }
-    }
-    absoluteEpisode = prevEpisodes + episode;
-  }
-  return absoluteEpisode;
+  return episode;
 }
 
 async function searchAnimexin(searchQuery, mediaType) {
@@ -206,25 +212,45 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
   return streams;
 }
 
-async function getStreams(tmdbId, mediaType, season, episode) {
+async function getStreams(anilistId, mediaType, season, episode) {
   try {
-    const tmdbData = await getTMDBData(tmdbId, mediaType)
-    const animeTitle =
-      tmdbData.name ||
-      tmdbData.title ||
-      tmdbData.original_name ||
-      tmdbData.original_title
-    if (!animeTitle) return []
+    const anilistData = await getAnilistData(anilistId)
+    const media = anilistData?.data?.Media;
+    
+    if (!media) return [];
 
-    const absoluteEpisode = getAbsoluteEpisode(tmdbData, mediaType, season, episode);
-    const searchQuery = animeTitle.split(':')[0].trim()
+    // 1. Compile a list of possible titles (English, Romaji, and Synonyms)
+    const searchQueries = new Set();
+    if (media.title?.english) searchQueries.add(media.title.english.split(':')[0].trim());
+    if (media.title?.romaji) searchQueries.add(media.title.romaji.split(':')[0].trim());
+    if (media.synonyms && Array.isArray(media.synonyms)) {
+      media.synonyms.forEach(syn => searchQueries.add(syn.split(':')[0].trim()));
+    }
 
-    const seriesUrl = await searchAnimexin(searchQuery, mediaType)
+    if (searchQueries.size === 0) return [];
+
+    // Anilist inherently uses absolute numbering!
+    const absoluteEpisode = episode;
+    let seriesUrl = null;
+    let successfulQuery = null;
+
+    // 2. Iterate through potential titles and search Animexin until a match is found
+    for (const query of searchQueries) {
+      if (!query) continue;
+      seriesUrl = await searchAnimexin(query, mediaType);
+      if (seriesUrl) {
+        successfulQuery = query;
+        break;
+      }
+    }
+    
     if (!seriesUrl) return []
 
     const episodeUrl = await getEpisodeUrl(seriesUrl, absoluteEpisode)
     if (!episodeUrl) return []
 
+    // Fallback to a good display name
+    const animeTitle = media.title?.english || media.title?.romaji || successfulQuery;
     const streams = await extractAllStreams(episodeUrl, animeTitle, absoluteEpisode)
     return streams;
   } catch (error) {
@@ -235,9 +261,8 @@ async function getStreams(tmdbId, mediaType, season, episode) {
 
 module.exports = {
   getStreams,
-  // Exported for testing
   fetchText,
-  getTMDBData,
+  getAnilistData,
   getAbsoluteEpisode,
   searchAnimexin,
   getEpisodeUrl,

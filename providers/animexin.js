@@ -1,6 +1,6 @@
 /**
  * animexin - Built from src/animexin/
- * Generated: 2026-08-25T09:28:31.478Z
+ * Generated: 2026-08-25T09:51:52.906Z
  */
 var __defProp = Object.defineProperty;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
@@ -59,25 +59,30 @@ function fetchText(_0) {
     }
   });
 }
-function getTMDBData(tmdbId, mediaType) {
+function getAnilistData(anilistId) {
   return __async(this, null, function* () {
-    const tmdbUrl = `https://api.themoviedb.org/3/${mediaType === "tv" ? "tv" : "movie"}/${tmdbId}?api_key=1865f43a0549ca50d341dd9ab8b29f49`;
-    const tmdbRes = yield fetch(tmdbUrl);
-    return yield tmdbRes.json();
+    const query = `
+  query ($id: Int) {
+    Media (id: $id, type: ANIME) {
+      title {
+        english
+        romaji
+      }
+      synonyms
+    }
+  }
+  `;
+    const variables = { id: parseInt(anilistId, 10) };
+    const res = yield fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables })
+    });
+    return yield res.json();
   });
 }
 function getAbsoluteEpisode(tmdbData, mediaType, season, episode) {
-  let absoluteEpisode = episode;
-  if (mediaType === "tv" && season > 1 && tmdbData.seasons) {
-    let prevEpisodes = 0;
-    for (const s of tmdbData.seasons) {
-      if (s.season_number > 0 && s.season_number < season) {
-        prevEpisodes += s.episode_count;
-      }
-    }
-    absoluteEpisode = prevEpisodes + episode;
-  }
-  return absoluteEpisode;
+  return episode;
 }
 function searchAnimexin(searchQuery, mediaType) {
   return __async(this, null, function* () {
@@ -241,21 +246,42 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
     return streams;
   });
 }
-function getStreams(tmdbId, mediaType, season, episode) {
+function getStreams(anilistId, mediaType, season, episode) {
   return __async(this, null, function* () {
+    var _a, _b, _c, _d, _e;
     try {
-      const tmdbData = yield getTMDBData(tmdbId, mediaType);
-      const animeTitle = tmdbData.name || tmdbData.title || tmdbData.original_name || tmdbData.original_title;
-      if (!animeTitle)
+      const anilistData = yield getAnilistData(anilistId);
+      const media = (_a = anilistData == null ? void 0 : anilistData.data) == null ? void 0 : _a.Media;
+      if (!media)
         return [];
-      const absoluteEpisode = getAbsoluteEpisode(tmdbData, mediaType, season, episode);
-      const searchQuery = animeTitle.split(":")[0].trim();
-      const seriesUrl = yield searchAnimexin(searchQuery, mediaType);
+      const searchQueries = /* @__PURE__ */ new Set();
+      if ((_b = media.title) == null ? void 0 : _b.english)
+        searchQueries.add(media.title.english.split(":")[0].trim());
+      if ((_c = media.title) == null ? void 0 : _c.romaji)
+        searchQueries.add(media.title.romaji.split(":")[0].trim());
+      if (media.synonyms && Array.isArray(media.synonyms)) {
+        media.synonyms.forEach((syn) => searchQueries.add(syn.split(":")[0].trim()));
+      }
+      if (searchQueries.size === 0)
+        return [];
+      const absoluteEpisode = episode;
+      let seriesUrl = null;
+      let successfulQuery = null;
+      for (const query of searchQueries) {
+        if (!query)
+          continue;
+        seriesUrl = yield searchAnimexin(query, mediaType);
+        if (seriesUrl) {
+          successfulQuery = query;
+          break;
+        }
+      }
       if (!seriesUrl)
         return [];
       const episodeUrl = yield getEpisodeUrl(seriesUrl, absoluteEpisode);
       if (!episodeUrl)
         return [];
+      const animeTitle = ((_d = media.title) == null ? void 0 : _d.english) || ((_e = media.title) == null ? void 0 : _e.romaji) || successfulQuery;
       const streams = yield extractAllStreams(episodeUrl, animeTitle, absoluteEpisode);
       return streams;
     } catch (error) {
@@ -266,9 +292,8 @@ function getStreams(tmdbId, mediaType, season, episode) {
 }
 module.exports = {
   getStreams,
-  // Exported for testing
   fetchText,
-  getTMDBData,
+  getAnilistData,
   getAbsoluteEpisode,
   searchAnimexin,
   getEpisodeUrl,

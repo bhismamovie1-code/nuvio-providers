@@ -1,5 +1,5 @@
 const {
-  getTMDBData,
+  getAnilistData,
   getAbsoluteEpisode,
   searchAnimexin,
   getEpisodeUrl,
@@ -9,45 +9,72 @@ const {
 async function testProvider() {
   console.log('--- Starting Animexin Step-by-Step Test ---\n')
 
-  // Test values (Renegade Immortal)
-  const tmdbId = '101172'
+  // Test values (Soul Land on Anilist is 101172)
+  const anilistId = '166218'
   const mediaType = 'tv'
   const season = 1
   const episode = 1
 
   try {
-    // Step 1: TMDB Fetch
-    console.log('[Step 1] Fetching TMDB Data...')
-    const tmdbData = await getTMDBData(tmdbId, mediaType)
-    const animeTitle = tmdbData.name || tmdbData.title || tmdbData.original_name
-    console.log(`✅ Title Found: ${animeTitle}`)
+    // Step 1: Anilist Fetch
+    console.log('[Step 1] Fetching Anilist Data...')
+    const anilistData = await getAnilistData(anilistId)
+    const media = anilistData?.data?.Media
 
-    if (!animeTitle) {
-      console.log('❌ TMDB returned no title! Provider will fail here.')
+    if (!media) {
+      console.log('❌ Anilist returned no data! Provider will fail here.')
       return
     }
 
+    const searchQueries = new Set()
+    if (media.title?.english)
+      searchQueries.add(media.title.english.split(':')[0].trim())
+    if (media.title?.romaji)
+      searchQueries.add(media.title.romaji.split(':')[0].trim())
+    if (media.synonyms && Array.isArray(media.synonyms)) {
+      media.synonyms.forEach((syn) =>
+        searchQueries.add(syn.split(':')[0].trim()),
+      )
+    }
+
+    console.log(
+      `✅ Found ${searchQueries.size} potential titles/synonyms to search.`,
+    )
+
     // Step 2: Absolute Episode
     console.log('\n[Step 2] Calculating Absolute Episode...')
-    const absoluteEpisode = getAbsoluteEpisode(
-      tmdbData,
-      mediaType,
-      season,
-      episode,
-    )
+    const absoluteEpisode = episode // Anilist is already absolute!
     console.log(`✅ Calculated Episode Number: ${absoluteEpisode}`)
 
     // Step 3: Search Animexin
     console.log('\n[Step 3] Searching Animexin...')
-    const searchQuery = animeTitle.split(':')[0].trim()
-    console.log(`   Searching for: "${searchQuery}"`)
-    const seriesUrl = await searchAnimexin(searchQuery, mediaType)
+    let seriesUrl = null
+    let successfulQuery = null
+
+    for (const query of searchQueries) {
+      if (!query) continue
+      console.log(`   Trying: "${query}" ...`)
+      seriesUrl = await searchAnimexin(query, mediaType)
+      if (seriesUrl) {
+        successfulQuery = query
+        console.log(`   ✅ MATCH FOUND!`)
+        break
+      } else {
+        console.log(`   ❌ No match.`)
+      }
+    }
 
     if (!seriesUrl) {
-      console.log('❌ No series matched on Animexin! Provider will fail here.')
+      console.log(
+        '\n❌ Exhausted all synonyms. No series matched on Animexin! Provider will fail here.',
+      )
       return
     }
-    console.log(`✅ Series URL Found: ${seriesUrl}`)
+    console.log(`\n✅ Final Series URL Found: ${seriesUrl}`)
+
+    // Use the successful title for naming the stream
+    const animeTitle =
+      media.title?.english || media.title?.romaji || successfulQuery
 
     // Step 4: Get Episode URL
     console.log('\n[Step 4] Fetching Episode List...')

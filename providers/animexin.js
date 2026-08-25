@@ -1,6 +1,6 @@
 /**
  * animexin - Built from src/animexin/
- * Generated: 2026-08-25T08:32:16.867Z
+ * Generated: 2026-08-25T08:36:43.145Z
  */
 var __defProp = Object.defineProperty;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
@@ -187,10 +187,9 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                 extractOkru(videoUrl).then((okruStreams) => {
                   okruStreams.forEach((s) => {
                     streams.push({
-                      server: `OK.ru`,
+                      server: serverName,
                       name: "Animexin",
                       title: `${animeTitle} - Ep ${absoluteEpisode}`,
-                      description: serverName,
                       url: s.url,
                       quality: "Auto"
                     });
@@ -202,10 +201,9 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                 extractDailymotion(videoUrl).then((dmStreams) => {
                   dmStreams.forEach((s) => {
                     streams.push({
-                      server: `Dailymotion`,
+                      server: serverName,
                       name: "Animexin",
                       title: `${animeTitle} - Ep ${absoluteEpisode}`,
-                      description: serverName,
                       url: s.url,
                       quality: "Auto"
                     });

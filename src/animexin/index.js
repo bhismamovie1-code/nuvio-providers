@@ -86,10 +86,49 @@ async function getEpisodeUrl(seriesUrl, targetEpisode) {
   return episodeUrl;
 }
 
+async function extractOkru(url) {
+  const res = await fetch(url.startsWith('//') ? `https:${url}` : url);
+  const text = await res.text();
+  const match = text.match(/data-options="([^"]+)"/);
+  if (!match) return [];
+  
+  const jsonStr = match[1].replace(/&quot;/g, '"');
+  try {
+    const data = JSON.parse(jsonStr);
+    const metadataStr = data.flashvars.metadata;
+    const metadata = JSON.parse(metadataStr);
+    return metadata.videos.map(v => ({
+      quality: v.name,
+      url: v.url
+    }));
+  } catch(e) {
+    return [];
+  }
+}
+
+async function extractDailymotion(url) {
+  const res = await fetch(url.startsWith('//') ? `https:${url}` : url);
+  const text = await res.text();
+  const match = text.match(/window\.__PLAYER_CONFIG__\s*=\s*(\{.+?\});/);
+  if (!match) return [];
+  
+  try {
+    const config = JSON.parse(match[1]);
+    const m3u8Url = config.criticalMetadata?.stream?.url;
+    if (m3u8Url) {
+      return [{ quality: 'Auto', url: m3u8Url }];
+    }
+  } catch(e) {}
+  return [];
+}
+
 async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
   const episodeHtml = await fetchText(episodeUrl)
   const $ep = cheerio.load(episodeHtml)
   const streams = []
+
+  // Create an array of promises so we can resolve all extractors in parallel
+  const extractionPromises = [];
 
   $ep('.mobius select option, #server option, .server option, .mobius .mirror option').each((i, el) => {
     const val = $ep(el).attr('value')
@@ -109,13 +148,37 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
         }
 
         if (videoUrl) {
-          streams.push({
-            server: serverName,
-            name: 'Animexin',
-            title: `${animeTitle} - Ep ${absoluteEpisode} [${serverName}]`,
-            url: videoUrl,
-            quality: 'Auto',
-          })
+          const sName = serverName.toLowerCase();
+          // Route to specific extractors
+          if (sName.includes('ok.ru') || videoUrl.includes('ok.ru')) {
+            extractionPromises.push(
+              extractOkru(videoUrl).then(okruStreams => {
+                okruStreams.forEach(s => {
+                  streams.push({
+                    server: `OK.ru - ${s.quality}`,
+                    name: 'Animexin',
+                    title: `${animeTitle} - Ep ${absoluteEpisode} [OK.ru ${s.quality}]`,
+                    url: s.url,
+                    quality: s.quality,
+                  })
+                })
+              })
+            );
+          } else if (sName.includes('daylimotion') || sName.includes('dailymotion') || videoUrl.includes('dailymotion')) {
+            extractionPromises.push(
+              extractDailymotion(videoUrl).then(dmStreams => {
+                dmStreams.forEach(s => {
+                  streams.push({
+                    server: `Dailymotion`,
+                    name: 'Animexin',
+                    title: `${animeTitle} - Ep ${absoluteEpisode} [Dailymotion]`,
+                    url: s.url,
+                    quality: s.quality,
+                  })
+                })
+              })
+            );
+          }
         }
       } catch (e) {
         console.error('[Animexin] Decryption error:', e.message);
@@ -123,19 +186,8 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
     }
   })
 
-  // Fallback if no dropdown is found
-  if (streams.length === 0) {
-    let videoUrl = $ep('.player-embed iframe').attr('src')
-    if (videoUrl) {
-      streams.push({
-        server: 'Animexin',
-        name: 'Animexin',
-        title: `${animeTitle} - Ep ${absoluteEpisode}`,
-        url: videoUrl,
-        quality: 'Auto',
-      })
-    }
-  }
+  // Wait for all extractions to complete
+  await Promise.all(extractionPromises);
 
   return streams;
 }

@@ -1,6 +1,6 @@
 /**
  * animexin - Built from src/animexin/
- * Generated: 2026-08-25T07:44:01.955Z
+ * Generated: 2026-08-25T08:23:12.642Z
  */
 var __defProp = Object.defineProperty;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
@@ -121,11 +121,52 @@ function getEpisodeUrl(seriesUrl, targetEpisode) {
     return episodeUrl;
   });
 }
+function extractOkru(url) {
+  return __async(this, null, function* () {
+    const res = yield fetch(url.startsWith("//") ? `https:${url}` : url);
+    const text = yield res.text();
+    const match = text.match(/data-options="([^"]+)"/);
+    if (!match)
+      return [];
+    const jsonStr = match[1].replace(/&quot;/g, '"');
+    try {
+      const data = JSON.parse(jsonStr);
+      const metadataStr = data.flashvars.metadata;
+      const metadata = JSON.parse(metadataStr);
+      return metadata.videos.map((v) => ({
+        quality: v.name,
+        url: v.url
+      }));
+    } catch (e) {
+      return [];
+    }
+  });
+}
+function extractDailymotion(url) {
+  return __async(this, null, function* () {
+    var _a, _b;
+    const res = yield fetch(url.startsWith("//") ? `https:${url}` : url);
+    const text = yield res.text();
+    const match = text.match(/window\.__PLAYER_CONFIG__\s*=\s*(\{.+?\});/);
+    if (!match)
+      return [];
+    try {
+      const config = JSON.parse(match[1]);
+      const m3u8Url = (_b = (_a = config.criticalMetadata) == null ? void 0 : _a.stream) == null ? void 0 : _b.url;
+      if (m3u8Url) {
+        return [{ quality: "Auto", url: m3u8Url }];
+      }
+    } catch (e) {
+    }
+    return [];
+  });
+}
 function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
   return __async(this, null, function* () {
     const episodeHtml = yield fetchText(episodeUrl);
     const $ep = cheerio.load(episodeHtml);
     const streams = [];
+    const extractionPromises = [];
     $ep(".mobius select option, #server option, .server option, .mobius .mirror option").each((i, el) => {
       const val = $ep(el).attr("value");
       const serverName = $ep(el).text().trim();
@@ -140,31 +181,45 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
             videoUrl = $iframe("iframe").attr("src");
           }
           if (videoUrl) {
-            streams.push({
-              server: serverName,
-              name: "Animexin",
-              title: `${animeTitle} - Ep ${absoluteEpisode} [${serverName}]`,
-              url: videoUrl,
-              quality: "Auto"
-            });
+            const sName = serverName.toLowerCase();
+            if (sName.includes("ok.ru") || videoUrl.includes("ok.ru")) {
+              extractionPromises.push(
+                extractOkru(videoUrl).then((okruStreams) => {
+                  okruStreams.forEach((s) => {
+                    streams.push({
+                      server: `OK.ru - ${s.quality}`,
+                      name: "Animexin",
+                      title: `${animeTitle} - Ep ${absoluteEpisode} [OK.ru ${s.quality}]`,
+                      description: "Player: OK.ru",
+                      url: s.url,
+                      quality: s.quality
+                    });
+                  });
+                })
+              );
+            } else if (sName.includes("daylimotion") || sName.includes("dailymotion") || videoUrl.includes("dailymotion")) {
+              extractionPromises.push(
+                extractDailymotion(videoUrl).then((dmStreams) => {
+                  dmStreams.forEach((s) => {
+                    streams.push({
+                      server: `Dailymotion`,
+                      name: "Animexin",
+                      title: `${animeTitle} - Ep ${absoluteEpisode} [Dailymotion]`,
+                      description: "Player: Dailymotion",
+                      url: s.url,
+                      quality: s.quality
+                    });
+                  });
+                })
+              );
+            }
           }
         } catch (e) {
           console.error("[Animexin] Decryption error:", e.message);
         }
       }
     });
-    if (streams.length === 0) {
-      let videoUrl = $ep(".player-embed iframe").attr("src");
-      if (videoUrl) {
-        streams.push({
-          server: "Animexin",
-          name: "Animexin",
-          title: `${animeTitle} - Ep ${absoluteEpisode}`,
-          url: videoUrl,
-          quality: "Auto"
-        });
-      }
-    }
+    yield Promise.all(extractionPromises);
     return streams;
   });
 }

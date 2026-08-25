@@ -158,6 +158,7 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                     server: `OK.ru - ${s.quality}`,
                     name: 'Animexin',
                     title: `${animeTitle} - Ep ${absoluteEpisode} [OK.ru ${s.quality}]`,
+                    description: 'Player: OK.ru',
                     url: s.url,
                     quality: s.quality,
                   })
@@ -172,6 +173,7 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                     server: `Dailymotion`,
                     name: 'Animexin',
                     title: `${animeTitle} - Ep ${absoluteEpisode} [Dailymotion]`,
+                    description: 'Player: Dailymotion',
                     url: s.url,
                     quality: s.quality,
                   })

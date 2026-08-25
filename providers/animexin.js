@@ -1,6 +1,6 @@
 /**
  * animexin - Built from src/animexin/
- * Generated: 2026-08-25T07:26:04.129Z
+ * Generated: 2026-08-25T07:44:01.955Z
  */
 var __defProp = Object.defineProperty;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
@@ -121,33 +121,51 @@ function getEpisodeUrl(seriesUrl, targetEpisode) {
     return episodeUrl;
   });
 }
-function extractVideoUrl(episodeUrl) {
+function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
   return __async(this, null, function* () {
     const episodeHtml = yield fetchText(episodeUrl);
     const $ep = cheerio.load(episodeHtml);
-    let videoUrl = $ep(".player-embed iframe").attr("src");
-    if (!videoUrl) {
-      $ep(".mobius select option, #server option").each((i, el) => {
-        const val = $ep(el).attr("value");
-        if (val) {
-          try {
-            const decoded = typeof atob !== "undefined" ? atob(val) : Buffer.from(val, "base64").toString("utf-8");
-            if (decoded.startsWith("http")) {
-              if (!videoUrl)
-                videoUrl = decoded;
-            } else {
-              const $iframe = cheerio.load(decoded);
-              const src = $iframe("iframe").attr("src");
-              if (src && !videoUrl)
-                videoUrl = src;
-            }
-          } catch (e) {
-            console.error("[Animexin] Decryption error:", e.message);
+    const streams = [];
+    $ep(".mobius select option, #server option, .server option, .mobius .mirror option").each((i, el) => {
+      const val = $ep(el).attr("value");
+      const serverName = $ep(el).text().trim();
+      if (val && serverName && serverName.toLowerCase() !== "select video server" && serverName !== "Choose Server") {
+        try {
+          const decoded = typeof atob !== "undefined" ? atob(val) : Buffer.from(val, "base64").toString("utf-8");
+          let videoUrl = null;
+          if (decoded.startsWith("http")) {
+            videoUrl = decoded;
+          } else {
+            const $iframe = cheerio.load(decoded);
+            videoUrl = $iframe("iframe").attr("src");
           }
+          if (videoUrl) {
+            streams.push({
+              server: serverName,
+              name: "Animexin",
+              title: `${animeTitle} - Ep ${absoluteEpisode} [${serverName}]`,
+              url: videoUrl,
+              quality: "Auto"
+            });
+          }
+        } catch (e) {
+          console.error("[Animexin] Decryption error:", e.message);
         }
-      });
+      }
+    });
+    if (streams.length === 0) {
+      let videoUrl = $ep(".player-embed iframe").attr("src");
+      if (videoUrl) {
+        streams.push({
+          server: "Animexin",
+          name: "Animexin",
+          title: `${animeTitle} - Ep ${absoluteEpisode}`,
+          url: videoUrl,
+          quality: "Auto"
+        });
+      }
     }
-    return videoUrl;
+    return streams;
   });
 }
 function getStreams(tmdbId, mediaType, season, episode) {
@@ -165,16 +183,8 @@ function getStreams(tmdbId, mediaType, season, episode) {
       const episodeUrl = yield getEpisodeUrl(seriesUrl, absoluteEpisode);
       if (!episodeUrl)
         return [];
-      const videoUrl = yield extractVideoUrl(episodeUrl);
-      if (!videoUrl)
-        return [];
-      return [{
-        server: "Animexin",
-        name: "Animexin",
-        title: `${animeTitle} - Ep ${absoluteEpisode}`,
-        url: videoUrl,
-        quality: "Auto"
-      }];
+      const streams = yield extractAllStreams(episodeUrl, animeTitle, absoluteEpisode);
+      return streams;
     } catch (error) {
       console.error("[Animexin Provider] Error:", error.message);
       return [];
@@ -189,5 +199,5 @@ module.exports = {
   getAbsoluteEpisode,
   searchAnimexin,
   getEpisodeUrl,
-  extractVideoUrl
+  extractAllStreams
 };

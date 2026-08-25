@@ -3,7 +3,7 @@ const {
   getAbsoluteEpisode, 
   searchAnimexin, 
   getEpisodeUrl, 
-  extractVideoUrl 
+  extractAllStreams 
 } = require('./src/animexin/index.js');
 
 async function testProvider() {
@@ -55,15 +55,18 @@ async function testProvider() {
     }
     console.log(`✅ Episode URL Found: ${episodeUrl}`);
 
-    // Step 5: Extract Video URL (Base64 / iframe parsing)
-    console.log('\n[Step 5] Extracting Stream Video URL...');
-    const videoUrl = await extractVideoUrl(episodeUrl);
+    // Step 5: Extract All Streams
+    console.log('\n[Step 5] Extracting Stream Video URLs...');
+    const streams = await extractAllStreams(episodeUrl, animeTitle, absoluteEpisode);
     
-    if (!videoUrl) {
-      console.log('❌ Failed to extract stream URL from episode page! Check the base64 or iframe logic.');
+    if (!streams || streams.length === 0) {
+      console.log('❌ Failed to extract any stream URLs from the episode page!');
       return;
     }
-    console.log(`✅ Final Video URL: ${videoUrl}`);
+    console.log(`✅ Found ${streams.length} Stream(s)!`);
+    streams.forEach((s, idx) => {
+      console.log(`   [${idx + 1}] ${s.server}: ${s.url}`);
+    });
 
     console.log('\n🎉 ALL STEPS PASSED SUCCESSFULLY!');
   } catch (err) {

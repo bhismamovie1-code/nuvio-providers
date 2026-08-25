@@ -86,33 +86,58 @@ async function getEpisodeUrl(seriesUrl, targetEpisode) {
   return episodeUrl;
 }
 
-async function extractVideoUrl(episodeUrl) {
+async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
   const episodeHtml = await fetchText(episodeUrl)
   const $ep = cheerio.load(episodeHtml)
+  const streams = []
 
-  let videoUrl = $ep('.player-embed iframe').attr('src')
+  $ep('.mobius select option, #server option, .server option, .mobius .mirror option').each((i, el) => {
+    const val = $ep(el).attr('value')
+    const serverName = $ep(el).text().trim()
 
-  if (!videoUrl) {
-    $ep('.mobius select option, #server option').each((i, el) => {
-      const val = $ep(el).attr('value')
-      if (val) {
-        try {
-          const decoded = typeof atob !== 'undefined' ? atob(val) : Buffer.from(val, 'base64').toString('utf-8')
-          if (decoded.startsWith('http')) {
-              if (!videoUrl) videoUrl = decoded;
-          } else {
-              const $iframe = cheerio.load(decoded)
-              const src = $iframe('iframe').attr('src')
-              if (src && !videoUrl) videoUrl = src
-          }
-        } catch (e) {
-          console.error('[Animexin] Decryption error:', e.message);
+    // Skip empty or placeholder options
+    if (val && serverName && serverName.toLowerCase() !== 'select video server' && serverName !== 'Choose Server') {
+      try {
+        const decoded = typeof atob !== 'undefined' ? atob(val) : Buffer.from(val, 'base64').toString('utf-8')
+        let videoUrl = null
+
+        if (decoded.startsWith('http')) {
+          videoUrl = decoded;
+        } else {
+          const $iframe = cheerio.load(decoded)
+          videoUrl = $iframe('iframe').attr('src')
         }
+
+        if (videoUrl) {
+          streams.push({
+            server: serverName,
+            name: 'Animexin',
+            title: `${animeTitle} - Ep ${absoluteEpisode} [${serverName}]`,
+            url: videoUrl,
+            quality: 'Auto',
+          })
+        }
+      } catch (e) {
+        console.error('[Animexin] Decryption error:', e.message);
       }
-    })
+    }
+  })
+
+  // Fallback if no dropdown is found
+  if (streams.length === 0) {
+    let videoUrl = $ep('.player-embed iframe').attr('src')
+    if (videoUrl) {
+      streams.push({
+        server: 'Animexin',
+        name: 'Animexin',
+        title: `${animeTitle} - Ep ${absoluteEpisode}`,
+        url: videoUrl,
+        quality: 'Auto',
+      })
+    }
   }
 
-  return videoUrl;
+  return streams;
 }
 
 async function getStreams(tmdbId, mediaType, season, episode) {
@@ -134,16 +159,8 @@ async function getStreams(tmdbId, mediaType, season, episode) {
     const episodeUrl = await getEpisodeUrl(seriesUrl, absoluteEpisode)
     if (!episodeUrl) return []
 
-    const videoUrl = await extractVideoUrl(episodeUrl)
-    if (!videoUrl) return []
-
-    return [{
-      server: 'Animexin',
-      name: 'Animexin',
-      title: `${animeTitle} - Ep ${absoluteEpisode}`,
-      url: videoUrl,
-      quality: 'Auto',
-    }]
+    const streams = await extractAllStreams(episodeUrl, animeTitle, absoluteEpisode)
+    return streams;
   } catch (error) {
     console.error('[Animexin Provider] Error:', error.message)
     return []
@@ -158,5 +175,5 @@ module.exports = {
   getAbsoluteEpisode,
   searchAnimexin,
   getEpisodeUrl,
-  extractVideoUrl
+  extractAllStreams
 }

@@ -10,10 +10,10 @@ async function testProvider() {
   console.log('--- Starting Animexin Step-by-Step Test ---\n')
 
   // Test values (Soul Land on Anilist is 101172)
-  const anilistId = '166218'
+  const anilistId = '137653'
   const mediaType = 'tv'
   const season = 1
-  const episode = 1
+  const episode = 50
 
   try {
     // Step 1: Anilist Fetch

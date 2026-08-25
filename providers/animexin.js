@@ -1,6 +1,6 @@
 /**
  * animexin - Built from src/animexin/
- * Generated: 2026-08-25T09:51:52.906Z
+ * Generated: 2026-08-25T10:01:05.180Z
  */
 var __defProp = Object.defineProperty;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
@@ -59,8 +59,12 @@ function fetchText(_0) {
     }
   });
 }
-function getAnilistData(anilistId) {
+function getAnilistData(idParam) {
   return __async(this, null, function* () {
+    const match = String(idParam).match(/\d+/);
+    if (!match)
+      return null;
+    const numericId = parseInt(match[0], 10);
     const query = `
   query ($id: Int) {
     Media (id: $id, type: ANIME) {
@@ -72,7 +76,7 @@ function getAnilistData(anilistId) {
     }
   }
   `;
-    const variables = { id: parseInt(anilistId, 10) };
+    const variables = { id: numericId };
     const res = yield fetch("https://graphql.anilist.co", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

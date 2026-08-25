@@ -18,7 +18,12 @@ async function fetchText(url, options = {}) {
   }
 }
 
-async function getAnilistData(anilistId) {
+async function getAnilistData(idParam) {
+  // Extract numbers from something like 'al:101915' or just '101915'
+  const match = String(idParam).match(/\d+/);
+  if (!match) return null;
+  const numericId = parseInt(match[0], 10);
+
   const query = `
   query ($id: Int) {
     Media (id: $id, type: ANIME) {
@@ -30,7 +35,7 @@ async function getAnilistData(anilistId) {
     }
   }
   `;
-  const variables = { id: parseInt(anilistId, 10) };
+  const variables = { id: numericId };
   const res = await fetch('https://graphql.anilist.co', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

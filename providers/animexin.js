@@ -1,6 +1,6 @@
 /**
  * animexin - Built from src/animexin/
- * Generated: 2026-08-25T09:01:02.642Z
+ * Generated: 2026-08-25T09:28:31.478Z
  */
 var __defProp = Object.defineProperty;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
@@ -186,12 +186,30 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
               extractionPromises.push(
                 extractOkru(videoUrl).then((okruStreams) => {
                   okruStreams.forEach((s) => {
+                    let mappedQuality = "auto";
+                    const q = s.quality.toLowerCase();
+                    if (q === "mobile")
+                      mappedQuality = "144p";
+                    else if (q === "lowest")
+                      mappedQuality = "240p";
+                    else if (q === "low")
+                      mappedQuality = "360p";
+                    else if (q === "sd")
+                      mappedQuality = "480p";
+                    else if (q === "hd")
+                      mappedQuality = "720p";
+                    else if (q === "full")
+                      mappedQuality = "1080p";
+                    else if (q === "quad")
+                      mappedQuality = "1440p";
+                    else if (q === "ultra")
+                      mappedQuality = "2160p";
                     streams.push({
                       server: serverName,
                       name: "Animexin",
                       title: `${animeTitle} - Ep ${absoluteEpisode}`,
                       url: s.url,
-                      quality: "auto",
+                      quality: mappedQuality,
                       headers: HEADERS
                     });
                   });

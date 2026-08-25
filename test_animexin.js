@@ -10,7 +10,7 @@ async function testProvider() {
   console.log('--- Starting Animexin Step-by-Step Test ---\n')
 
   // Test values (Renegade Immortal)
-  const tmdbId = '223911'
+  const tmdbId = '101172'
   const mediaType = 'tv'
   const season = 1
   const episode = 1
@@ -76,7 +76,7 @@ async function testProvider() {
     }
     console.log(`✅ Found ${streams.length} Stream(s)!`)
     streams.forEach((s, idx) => {
-      console.log(`   [${idx + 1}] ${s.server}`)
+      console.log(`   [${idx + 1}] ${s.server} (${s.quality})`)
       console.log(`       URL: ${s.url}`)
     })
 

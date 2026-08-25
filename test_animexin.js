@@ -1,6 +1,6 @@
 const {
-  getAnilistData,
-  getAbsoluteEpisode,
+  getKitsuData,
+  getKitsuAbsoluteEpisode,
   searchAnimexin,
   getEpisodeUrl,
   extractAllStreams,
@@ -9,30 +9,36 @@ const {
 async function testProvider() {
   console.log('--- Starting Animexin Step-by-Step Test ---\n')
 
-  // Test values (Soul Land on Anilist is 101172)
-  const anilistId = '137653'
+  // Soul Land on Kitsu is 40995 (or just let them know)
+  const kitsuId = '48060'
   const mediaType = 'tv'
   const season = 1
-  const episode = 50
+  const episode = 1
 
   try {
-    // Step 1: Anilist Fetch
-    console.log('[Step 1] Fetching Anilist Data...')
-    const anilistData = await getAnilistData(anilistId)
-    const media = anilistData?.data?.Media
+    // Step 1: Kitsu Fetch
+    console.log('[Step 1] Fetching Kitsu Data...')
+    const kitsuData = await getKitsuData(kitsuId)
+    const attributes = kitsuData?.data?.attributes
 
-    if (!media) {
-      console.log('❌ Anilist returned no data! Provider will fail here.')
+    if (!attributes) {
+      console.log('❌ Kitsu returned no data! Provider will fail here.')
       return
     }
 
     const searchQueries = new Set()
-    if (media.title?.english)
-      searchQueries.add(media.title.english.split(':')[0].trim())
-    if (media.title?.romaji)
-      searchQueries.add(media.title.romaji.split(':')[0].trim())
-    if (media.synonyms && Array.isArray(media.synonyms)) {
-      media.synonyms.forEach((syn) =>
+    if (attributes.titles) {
+      if (attributes.titles.en)
+        searchQueries.add(attributes.titles.en.split(':')[0].trim())
+      if (attributes.titles.en_jp)
+        searchQueries.add(attributes.titles.en_jp.split(':')[0].trim())
+    }
+
+    if (
+      attributes.abbreviatedTitles &&
+      Array.isArray(attributes.abbreviatedTitles)
+    ) {
+      attributes.abbreviatedTitles.forEach((syn) =>
         searchQueries.add(syn.split(':')[0].trim()),
       )
     }
@@ -42,8 +48,8 @@ async function testProvider() {
     )
 
     // Step 2: Absolute Episode
-    console.log('\n[Step 2] Calculating Absolute Episode...')
-    const absoluteEpisode = episode // Anilist is already absolute!
+    console.log('\n[Step 2] Calculating Absolute Episode via Kitsu...')
+    const absoluteEpisode = getKitsuAbsoluteEpisode(kitsuId, season, episode)
     console.log(`✅ Calculated Episode Number: ${absoluteEpisode}`)
 
     // Step 3: Search Animexin
@@ -74,7 +80,7 @@ async function testProvider() {
 
     // Use the successful title for naming the stream
     const animeTitle =
-      media.title?.english || media.title?.romaji || successfulQuery
+      attributes.titles?.en || attributes.titles?.en_jp || successfulQuery
 
     // Step 4: Get Episode URL
     console.log('\n[Step 4] Fetching Episode List...')
@@ -82,14 +88,12 @@ async function testProvider() {
     const episodeUrl = await getEpisodeUrl(seriesUrl, absoluteEpisode)
 
     if (!episodeUrl) {
-      console.log(
-        '❌ Episode not found on the series page! Provider will fail here.',
-      )
+      console.log('❌ Episode URL not found on Animexin!')
       return
     }
     console.log(`✅ Episode URL Found: ${episodeUrl}`)
 
-    // Step 5: Extract All Streams
+    // Step 5: Extract Streams
     console.log('\n[Step 5] Extracting Stream Video URLs...')
     const streams = await extractAllStreams(
       episodeUrl,
@@ -98,7 +102,7 @@ async function testProvider() {
     )
 
     if (!streams || streams.length === 0) {
-      console.log('❌ Failed to extract any stream URLs from the episode page!')
+      console.log('❌ No streams extracted from episode page.')
       return
     }
     console.log(`✅ Found ${streams.length} Stream(s)!`)
@@ -109,7 +113,7 @@ async function testProvider() {
 
     console.log('\n🎉 ALL STEPS PASSED SUCCESSFULLY!')
   } catch (err) {
-    console.error('\n❌ Unhandled Exception during testing:', err.message)
+    console.error('\n❌ TEST FAILED WITH ERROR:', err)
   }
 }
 

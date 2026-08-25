@@ -18,34 +18,27 @@ async function fetchText(url, options = {}) {
   }
 }
 
-async function getAnilistData(idParam) {
-  // Extract numbers from something like 'al:101915' or just '101915'
+async function getKitsuData(idParam) {
   const match = String(idParam).match(/\d+/);
   if (!match) return null;
   const numericId = parseInt(match[0], 10);
 
-  const query = `
-  query ($id: Int) {
-    Media (id: $id, type: ANIME) {
-      title {
-        english
-        romaji
+  try {
+    const res = await fetch(`https://kitsu.io/api/edge/anime/${numericId}`, {
+      headers: {
+        'Accept': 'application/vnd.api+json',
+        'Content-Type': 'application/vnd.api+json'
       }
-      synonyms
-    }
+    });
+    return await res.json();
+  } catch (e) {
+    console.error('[Animexin] Kitsu API Error:', e.message);
+    return null;
   }
-  `;
-  const variables = { id: numericId };
-  const res = await fetch('https://graphql.anilist.co', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables })
-  });
-  return await res.json();
 }
 
-// We no longer need this because Anilist already uses absolute numbering!
-function getAbsoluteEpisode(tmdbData, mediaType, season, episode) {
+// Kitsu naturally handles absolute episode numbering for Anime.
+function getKitsuAbsoluteEpisode(idParam, season, episode) {
   return episode;
 }
 
@@ -217,25 +210,29 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
   return streams;
 }
 
-async function getStreams(anilistId, mediaType, season, episode) {
+async function getStreams(kitsuId, mediaType, season, episode) {
   try {
-    const anilistData = await getAnilistData(anilistId)
-    const media = anilistData?.data?.Media;
+    const kitsuData = await getKitsuData(kitsuId)
+    const attributes = kitsuData?.data?.attributes;
     
-    if (!media) return [];
+    if (!attributes) return [];
 
     // 1. Compile a list of possible titles (English, Romaji, and Synonyms)
     const searchQueries = new Set();
-    if (media.title?.english) searchQueries.add(media.title.english.split(':')[0].trim());
-    if (media.title?.romaji) searchQueries.add(media.title.romaji.split(':')[0].trim());
-    if (media.synonyms && Array.isArray(media.synonyms)) {
-      media.synonyms.forEach(syn => searchQueries.add(syn.split(':')[0].trim()));
+    
+    if (attributes.titles) {
+      if (attributes.titles.en) searchQueries.add(attributes.titles.en.split(':')[0].trim());
+      if (attributes.titles.en_jp) searchQueries.add(attributes.titles.en_jp.split(':')[0].trim());
+    }
+    
+    if (attributes.abbreviatedTitles && Array.isArray(attributes.abbreviatedTitles)) {
+      attributes.abbreviatedTitles.forEach(syn => searchQueries.add(syn.split(':')[0].trim()));
     }
 
     if (searchQueries.size === 0) return [];
 
-    // Anilist inherently uses absolute numbering!
-    const absoluteEpisode = episode;
+    // Map Season/Episode to Absolute Episode via Kitsu
+    const absoluteEpisode = getKitsuAbsoluteEpisode(kitsuId, season, episode);
     let seriesUrl = null;
     let successfulQuery = null;
 
@@ -255,7 +252,7 @@ async function getStreams(anilistId, mediaType, season, episode) {
     if (!episodeUrl) return []
 
     // Fallback to a good display name
-    const animeTitle = media.title?.english || media.title?.romaji || successfulQuery;
+    const animeTitle = attributes.titles?.en || attributes.titles?.en_jp || successfulQuery;
     const streams = await extractAllStreams(episodeUrl, animeTitle, absoluteEpisode)
     return streams;
   } catch (error) {
@@ -267,8 +264,8 @@ async function getStreams(anilistId, mediaType, season, episode) {
 module.exports = {
   getStreams,
   fetchText,
-  getAnilistData,
-  getAbsoluteEpisode,
+  getKitsuData,
+  getKitsuAbsoluteEpisode,
   searchAnimexin,
   getEpisodeUrl,
   extractAllStreams

@@ -1,6 +1,6 @@
 /**
  * animexin - Built from src/animexin/
- * Generated: 2026-08-25T10:01:05.180Z
+ * Generated: 2026-08-25T12:41:32.027Z
  */
 var __defProp = Object.defineProperty;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
@@ -59,33 +59,27 @@ function fetchText(_0) {
     }
   });
 }
-function getAnilistData(idParam) {
+function getKitsuData(idParam) {
   return __async(this, null, function* () {
     const match = String(idParam).match(/\d+/);
     if (!match)
       return null;
     const numericId = parseInt(match[0], 10);
-    const query = `
-  query ($id: Int) {
-    Media (id: $id, type: ANIME) {
-      title {
-        english
-        romaji
-      }
-      synonyms
+    try {
+      const res = yield fetch(`https://kitsu.io/api/edge/anime/${numericId}`, {
+        headers: {
+          "Accept": "application/vnd.api+json",
+          "Content-Type": "application/vnd.api+json"
+        }
+      });
+      return yield res.json();
+    } catch (e) {
+      console.error("[Animexin] Kitsu API Error:", e.message);
+      return null;
     }
-  }
-  `;
-    const variables = { id: numericId };
-    const res = yield fetch("https://graphql.anilist.co", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, variables })
-    });
-    return yield res.json();
   });
 }
-function getAbsoluteEpisode(tmdbData, mediaType, season, episode) {
+function getKitsuAbsoluteEpisode(idParam, season, episode) {
   return episode;
 }
 function searchAnimexin(searchQuery, mediaType) {
@@ -250,25 +244,27 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
     return streams;
   });
 }
-function getStreams(anilistId, mediaType, season, episode) {
+function getStreams(kitsuId, mediaType, season, episode) {
   return __async(this, null, function* () {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c;
     try {
-      const anilistData = yield getAnilistData(anilistId);
-      const media = (_a = anilistData == null ? void 0 : anilistData.data) == null ? void 0 : _a.Media;
-      if (!media)
+      const kitsuData = yield getKitsuData(kitsuId);
+      const attributes = (_a = kitsuData == null ? void 0 : kitsuData.data) == null ? void 0 : _a.attributes;
+      if (!attributes)
         return [];
       const searchQueries = /* @__PURE__ */ new Set();
-      if ((_b = media.title) == null ? void 0 : _b.english)
-        searchQueries.add(media.title.english.split(":")[0].trim());
-      if ((_c = media.title) == null ? void 0 : _c.romaji)
-        searchQueries.add(media.title.romaji.split(":")[0].trim());
-      if (media.synonyms && Array.isArray(media.synonyms)) {
-        media.synonyms.forEach((syn) => searchQueries.add(syn.split(":")[0].trim()));
+      if (attributes.titles) {
+        if (attributes.titles.en)
+          searchQueries.add(attributes.titles.en.split(":")[0].trim());
+        if (attributes.titles.en_jp)
+          searchQueries.add(attributes.titles.en_jp.split(":")[0].trim());
+      }
+      if (attributes.abbreviatedTitles && Array.isArray(attributes.abbreviatedTitles)) {
+        attributes.abbreviatedTitles.forEach((syn) => searchQueries.add(syn.split(":")[0].trim()));
       }
       if (searchQueries.size === 0)
         return [];
-      const absoluteEpisode = episode;
+      const absoluteEpisode = getKitsuAbsoluteEpisode(kitsuId, season, episode);
       let seriesUrl = null;
       let successfulQuery = null;
       for (const query of searchQueries) {
@@ -285,7 +281,7 @@ function getStreams(anilistId, mediaType, season, episode) {
       const episodeUrl = yield getEpisodeUrl(seriesUrl, absoluteEpisode);
       if (!episodeUrl)
         return [];
-      const animeTitle = ((_d = media.title) == null ? void 0 : _d.english) || ((_e = media.title) == null ? void 0 : _e.romaji) || successfulQuery;
+      const animeTitle = ((_b = attributes.titles) == null ? void 0 : _b.en) || ((_c = attributes.titles) == null ? void 0 : _c.en_jp) || successfulQuery;
       const streams = yield extractAllStreams(episodeUrl, animeTitle, absoluteEpisode);
       return streams;
     } catch (error) {
@@ -297,8 +293,8 @@ function getStreams(anilistId, mediaType, season, episode) {
 module.exports = {
   getStreams,
   fetchText,
-  getAnilistData,
-  getAbsoluteEpisode,
+  getKitsuData,
+  getKitsuAbsoluteEpisode,
   searchAnimexin,
   getEpisodeUrl,
   extractAllStreams

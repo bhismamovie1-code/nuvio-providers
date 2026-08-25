@@ -155,12 +155,12 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
               extractOkru(videoUrl).then(okruStreams => {
                 okruStreams.forEach(s => {
                   streams.push({
-                    server: `OK.ru - ${s.quality}`,
+                    server: `OK.ru`,
                     name: 'Animexin',
-                    title: `${animeTitle} - Ep ${absoluteEpisode} [OK.ru ${s.quality}]`,
-                    description: 'Player: OK.ru',
+                    title: `${animeTitle} - Ep ${absoluteEpisode}`,
+                    description: serverName,
                     url: s.url,
-                    quality: s.quality,
+                    quality: 'Auto',
                   })
                 })
               })
@@ -172,10 +172,10 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                   streams.push({
                     server: `Dailymotion`,
                     name: 'Animexin',
-                    title: `${animeTitle} - Ep ${absoluteEpisode} [Dailymotion]`,
-                    description: 'Player: Dailymotion',
+                    title: `${animeTitle} - Ep ${absoluteEpisode}`,
+                    description: serverName,
                     url: s.url,
-                    quality: s.quality,
+                    quality: 'Auto',
                   })
                 })
               })

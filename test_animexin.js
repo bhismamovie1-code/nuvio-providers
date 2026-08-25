@@ -65,7 +65,9 @@ async function testProvider() {
     }
     console.log(`✅ Found ${streams.length} Stream(s)!`);
     streams.forEach((s, idx) => {
-      console.log(`   [${idx + 1}] ${s.server}: ${s.url}`);
+      console.log(`   [${idx + 1}] ${s.server}`);
+      console.log(`       URL: ${s.url}`);
+      console.log(`       Desc: ${s.description}`);
     });
 
     console.log('\n🎉 ALL STEPS PASSED SUCCESSFULLY!');

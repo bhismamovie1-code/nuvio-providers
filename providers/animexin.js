@@ -1,6 +1,6 @@
 /**
  * animexin - Built from src/animexin/
- * Generated: 2026-08-25T14:09:11.379Z
+ * Generated: 2026-08-25T14:20:07.042Z
  */
 var __defProp = Object.defineProperty;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
@@ -153,10 +153,17 @@ function extractDailymotion(url) {
         return [];
       const videoId = videoIdMatch[1];
       const metadataUrl = `https://www.dailymotion.com/player/metadata/video/${videoId}`;
-      const res = yield fetch(metadataUrl);
+      const res = yield fetch(metadataUrl, { headers: { "User-Agent": HEADERS["User-Agent"] } });
+      let cookieString = "";
+      if (res.headers && res.headers.get) {
+        const setCookie = res.headers.get("set-cookie");
+        if (setCookie) {
+          cookieString = setCookie.split(",").map((c) => c.split(";")[0].trim()).filter((c) => !c.includes(" expires=") && !c.includes(" path=")).join("; ");
+        }
+      }
       const json = yield res.json();
       if (json.qualities && json.qualities.auto && json.qualities.auto[0]) {
-        return [{ quality: "Auto", url: json.qualities.auto[0].url }];
+        return [{ quality: "Auto", url: json.qualities.auto[0].url, cookie: cookieString }];
       }
     } catch (e) {
       console.error("[Dailymotion] Extractor error:", e.message);
@@ -222,13 +229,17 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
               extractionPromises.push(
                 extractDailymotion(videoUrl).then((dmStreams) => {
                   dmStreams.forEach((s) => {
+                    let finalHeaders = { "User-Agent": HEADERS["User-Agent"] };
+                    if (s.cookie) {
+                      finalHeaders["Cookie"] = s.cookie;
+                    }
                     streams.push({
                       server: serverName,
                       name: "Animexin (DM)",
                       title: `${animeTitle} - Ep ${absoluteEpisode}`,
                       url: s.url,
                       quality: "auto",
-                      headers: HEADERS
+                      headers: finalHeaders
                     });
                   });
                 })

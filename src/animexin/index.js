@@ -117,11 +117,21 @@ async function extractDailymotion(url) {
     
     const videoId = videoIdMatch[1];
     const metadataUrl = `https://www.dailymotion.com/player/metadata/video/${videoId}`;
-    const res = await fetch(metadataUrl);
+    const res = await fetch(metadataUrl, { headers: { 'User-Agent': HEADERS['User-Agent'] } });
+    
+    // Extract cookies to pass to the player
+    let cookieString = '';
+    if (res.headers && res.headers.get) {
+      const setCookie = res.headers.get('set-cookie');
+      if (setCookie) {
+        cookieString = setCookie.split(',').map(c => c.split(';')[0].trim()).filter(c => !c.includes(' expires=') && !c.includes(' path=')).join('; ');
+      }
+    }
+    
     const json = await res.json();
     
     if (json.qualities && json.qualities.auto && json.qualities.auto[0]) {
-      return [{ quality: 'Auto', url: json.qualities.auto[0].url }];
+      return [{ quality: 'Auto', url: json.qualities.auto[0].url, cookie: cookieString }];
     }
   } catch(e) {
     console.error('[Dailymotion] Extractor error:', e.message);
@@ -188,13 +198,18 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
             extractionPromises.push(
               extractDailymotion(videoUrl).then(dmStreams => {
                 dmStreams.forEach(s => {
+                  let finalHeaders = { 'User-Agent': HEADERS['User-Agent'] };
+                  if (s.cookie) {
+                    finalHeaders['Cookie'] = s.cookie;
+                  }
+                  
                   streams.push({
                     server: serverName,
                     name: 'Animexin (DM)',
                     title: `${animeTitle} - Ep ${absoluteEpisode}`,
                     url: s.url,
                     quality: 'auto',
-                    headers: HEADERS,
+                    headers: finalHeaders,
                   })
                 })
               })

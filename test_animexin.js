@@ -13,7 +13,7 @@ async function testProvider() {
   const kitsuId = '48061'
   const mediaType = 'tv'
   const season = 1
-  const episode = 66
+  const episode = 67
 
   try {
     // Step 1: Kitsu Fetch

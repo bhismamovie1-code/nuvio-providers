@@ -1,16 +1,19 @@
-[
-  
-  {
-  "id": "animexin",
-  "name": "Animexin",
-  "description": "Donghua streaming provider from animexin.dev",
+{
+  "name": "My Nuvio Providers Repo",
   "version": "1.0.0",
-  "author": "Your Name",
-  "supportedTypes": ["movie", "tv"],
-  "filename": "providers/animexin.js",
-  "enabled": true,
-  "logo": "https://animexin.dev/favicon.ico",
-  "contentLanguage": ["en"],
-  "formats": ["mp4", "m3u8"]
+  "scrapers": [
+    {
+      "id": "animexin",
+      "name": "Animexin",
+      "description": "Donghua streaming provider from animexin.dev",
+      "version": "1.0.0",
+      "author": "Your Name",
+      "supportedTypes": ["movie", "tv"],
+      "filename": "providers/animexin.js",
+      "enabled": true,
+      "logo": "https://animexin.dev/favicon.ico",
+      "contentLanguage": ["en"],
+      "formats": ["mp4", "m3u8"]
+    }
+  ]
 }
-]

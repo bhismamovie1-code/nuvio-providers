@@ -1,6 +1,6 @@
 /**
  * animexin - Built from src/animexin/
- * Generated: 2026-08-25T08:36:43.145Z
+ * Generated: 2026-08-25T09:01:02.642Z
  */
 var __defProp = Object.defineProperty;
 var __getOwnPropSymbols = Object.getOwnPropertySymbols;
@@ -191,7 +191,8 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                       name: "Animexin",
                       title: `${animeTitle} - Ep ${absoluteEpisode}`,
                       url: s.url,
-                      quality: "Auto"
+                      quality: "auto",
+                      headers: HEADERS
                     });
                   });
                 })
@@ -205,7 +206,8 @@ function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                       name: "Animexin",
                       title: `${animeTitle} - Ep ${absoluteEpisode}`,
                       url: s.url,
-                      quality: "Auto"
+                      quality: "auto",
+                      headers: HEADERS
                     });
                   });
                 })

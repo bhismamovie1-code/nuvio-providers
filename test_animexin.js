@@ -9,8 +9,8 @@ const {
 async function testProvider() {
   console.log('--- Starting Animexin Step-by-Step Test ---\n')
 
-  // Test values (Soul Land - TV Show)
-  const tmdbId = '76572'
+  // Test values (Renegade Immortal)
+  const tmdbId = '223911'
   const mediaType = 'tv'
   const season = 1
   const episode = 1

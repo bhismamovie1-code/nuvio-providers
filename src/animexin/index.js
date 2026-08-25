@@ -159,7 +159,8 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                     name: 'Animexin',
                     title: `${animeTitle} - Ep ${absoluteEpisode}`,
                     url: s.url,
-                    quality: 'Auto',
+                    quality: 'auto',
+                    headers: HEADERS,
                   })
                 })
               })
@@ -173,7 +174,8 @@ async function extractAllStreams(episodeUrl, animeTitle, absoluteEpisode) {
                     name: 'Animexin',
                     title: `${animeTitle} - Ep ${absoluteEpisode}`,
                     url: s.url,
-                    quality: 'Auto',
+                    quality: 'auto',
+                    headers: HEADERS,
                   })
                 })
               })
